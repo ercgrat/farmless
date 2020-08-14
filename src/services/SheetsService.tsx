@@ -1,7 +1,7 @@
 import { BehaviorSubject } from 'rxjs';
 import { useEffect, useState } from 'react';
 
-export function useSheetService(): boolean {
+export function useSheetsService(): boolean {
     const [isSignedIn, setIsSignedIn] = useState(false);
     useEffect(() => {
         SheetsService.initialize();

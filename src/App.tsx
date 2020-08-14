@@ -1,10 +1,10 @@
 import React from 'react';
 import './App.css';
-import SheetsService, { useSheetService } from './services/SheetsService';
+import SheetsService, { useSheetsService } from './services/SheetsService';
 
 function App() {
     
-    const isSignedIn = useSheetService();
+    const isSignedIn = useSheetsService();
 
     return (
         <div className="App">
