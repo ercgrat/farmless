@@ -1,10 +1,11 @@
 import React from 'react';
 import './App.css';
-import SheetsService, { useSheetsService } from './services/SheetsService';
+import { useSheetsService } from './services/SheetsService';
+import Dashboard from './components/Dashboard';
 
 function App() {
     
-    const isSignedIn = useSheetsService();
+    const sheetService = useSheetsService();
 
     return (
         <div className="App">
@@ -12,13 +13,14 @@ function App() {
             <button onClick={() => {
                 signout();
             }}>
-                { isSignedIn ? 'Switch accounts' : 'Sign in' }
+                { sheetService.getIsSignedIn() ? 'Switch accounts' : 'Sign in' }
             </button>
+            <Dashboard/>
         </div>
     );
 
     function signout() {
-        SheetsService.signout();
+        sheetService.signout();
     }
 }
 

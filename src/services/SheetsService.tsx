@@ -1,26 +1,49 @@
 import { BehaviorSubject } from 'rxjs';
 import { useEffect, useState } from 'react';
 
-export function useSheetsService(): boolean {
+export interface ISheetService {
+    getIsSignedIn(): boolean;
+    getData(): any;
+    signout(): void;
+    reloadData(): Promise<void | Response>;
+}
+
+export function useSheetsService(): ISheetService {
     const [isSignedIn, setIsSignedIn] = useState(false);
+    const [data, setData] = useState({});
+    const sheetService: ISheetService = {
+        getIsSignedIn: () => {
+            return isSignedIn;
+        },
+        getData: () => {
+            return data;
+        },
+        signout: SheetsService.signout,
+        reloadData: SheetsService.reloadData
+    };
     useEffect(() => {
         SheetsService.initialize();
-        const signedInSubject= SheetsService.getSignedInSubject();
-        const signedInSubscription = signedInSubject.subscribe((value) => {
+        const signedInSubscription = SheetsService.getSignedInSubject().subscribe((value) => {
             setIsSignedIn(value);
         });
-
+        const dataSubscription = SheetsService.getDataSubject().subscribe((value) => {
+            setData(value);
+        });
         return (() => {
             //cleanup function
             signedInSubscription.unsubscribe();
+            dataSubscription.unsubscribe();
         });
-    }, []);
+    }, [setIsSignedIn, setData]);
 
-    return isSignedIn;
+    return sheetService;
 }
 
-export default class SheetsService {
+class SheetsService {
+    private static isInitialized = false;
+
     private static SignedInSubject: BehaviorSubject<boolean>;
+    private static DataSubject: BehaviorSubject<any>;
 
     // Client ID and API key from the Developer Console
     private static CLIENT_ID = '849489452026-l86oilegotm5l0j7s387vma11uqm9tou.apps.googleusercontent.com';
@@ -32,9 +55,6 @@ export default class SheetsService {
     // Authorization scopes required by the API; multiple scopes can be
     // included, separated by spaces.
     private static SCOPES = "https://www.googleapis.com/auth/spreadsheets.readonly";
-
-    private static isInitialized = false;
-    private static isSignedIn = false;
 
     public static initialize() {
         if (!SheetsService.isInitialized) {
@@ -48,11 +68,15 @@ export default class SheetsService {
         gapi.auth2.getAuthInstance().disconnect();
     }
 
-    public static getSignedInSubject(): BehaviorSubject<boolean> {
-        SheetsService.SignedInSubject = SheetsService.SignedInSubject || new BehaviorSubject<boolean>(SheetsService.isSignedIn);
-        return SheetsService.SignedInSubject;
+    public static reloadData(): Promise<void | Response> {
+        return gapi.client.sheets.spreadsheets.values.get({
+            spreadsheetId: '1WsCmqKn56rVLtG12kR28JVrj05MjUscNNSsIHTRD3z8',
+            range: 'Greenhouse!A:E',
+        }).then(function (response) {
+            SheetsService.updateData(response);
+        });
     }
-    
+
     private static initClient() {
         gapi.client.init({
             apiKey: SheetsService.API_KEY,
@@ -65,17 +89,33 @@ export default class SheetsService {
 
             // Handle the initial sign-in state.
             SheetsService.updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
-            
+
+            // Load data
+            SheetsService.reloadData();
+
         }, function (error) {
             console.log(JSON.stringify(error, null, 2));
         });
     }
 
-    private static updateSigninStatus(isSignedIn: boolean) {
-        SheetsService.isSignedIn = isSignedIn;
-        SheetsService.SignedInSubject.next(SheetsService.isSignedIn);
+    public static getSignedInSubject(): BehaviorSubject<boolean> {
+        SheetsService.SignedInSubject = SheetsService.SignedInSubject || new BehaviorSubject<boolean>(false);
+        return SheetsService.SignedInSubject;
+    }
+
+    public static getDataSubject(): BehaviorSubject<any> {
+        SheetsService.DataSubject = SheetsService.DataSubject || new BehaviorSubject<any>(null);
+        return SheetsService.DataSubject;
+    }
+
+    public static updateSigninStatus(isSignedIn: boolean) {
+        SheetsService.SignedInSubject.next(isSignedIn);
         if (!isSignedIn) {
             gapi.auth2.getAuthInstance().signIn();
         }
+    }
+
+    public static updateData(data: any) {
+        SheetsService.DataSubject.next(data);
     }
 }
